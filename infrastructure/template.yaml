@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Connect-HaloPSA Infrastructure Base
+
+Parameters:
+  StackName:
+    Type: String
+    Default: connect-halopsa-integration
+  Environment:
+    Type: String
+    Default: production
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs20.x
+    Tracing: Active
+
+Resources:
+  CustomerCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${StackName}-customer-cache-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: phoneNumber
+          AttributeType: S
+      KeySchema:
+        - AttributeName: phoneNumber
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  CallLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${StackName}-call-logs-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: contactId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: contactId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+Outputs:
+  CustomerCacheTableName:
+    Value: !Ref CustomerCacheTable
+    Export:
+      Name: !Sub '${StackName}-customer-cache-table'
+
+  CallLogsTableName:
+    Value: !Ref CallLogsTable
+    Export:
+      Name: !Sub '${StackName}-call-logs-table'

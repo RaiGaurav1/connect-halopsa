@@ -1,0 +1,59 @@
+{
+  "Metadata": {
+    "Name": "ConnectHaloPSA-Transfer",
+    "Description": "Transfer flow that logs call on end"
+  },
+  "Actions": [
+    {
+      "Identifier": "Start",
+      "Type": "CheckAttribute",
+      "Parameters": {
+        "ComparisonType": "Exists",
+        "LeftValue": "ContactData.Attributes.CustomerId"
+      },
+      "Transitions": {
+        "True": "ContinueCall",
+        "False": "NoCustomerData"
+      }
+    },
+    {
+      "Identifier": "ContinueCall",
+      "Type": "ConnectParticipant",
+      "Parameters": { },
+      "Transitions": { "NextAction": "EndEvent" }
+    },
+    {
+      "Identifier": "NoCustomerData",
+      "Type": "PlayPrompt",
+      "Parameters": {
+        "Prompt": "No customer data available. Routing normally."
+      },
+      "Transitions": { "NextAction": "RouteDefault" }
+    },
+    {
+      "Identifier": "RouteDefault",
+      "Type": "TransferToQueue",
+      "Parameters": {
+        "QueueARN": "arn:aws:connect:${AWS_REGION}:${AWS_ACCOUNT_ID}:instance/${CONNECT_INSTANCE_ID}/queue/your-queue-id"
+      }
+    },
+    {
+      "Identifier": "EndEvent",
+      "Type": "InvokeAWSLambdaFunction",
+      "Parameters": {
+        "FunctionARN": "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${STACK_NAME}-call-logging",
+        "InvocationType": "Event",
+        "UserParameters": {
+          "CustomerId": "${ContactData.Attributes.CustomerId}",
+          "PhoneNumber": "${ContactData.CustomerEndpoint.Address}",
+          "AgentId":       "${Participant.UserId}",
+          "ContactId":     "${ContactData.ContactId}",
+          "StartTimestamp":"${ContactData.InitiationTimestamp}",
+          "EndTimestamp":  "${System.Timestamp}",
+          "Transcript":    "${ContactData.Attributes.Transcript}"
+        }
+      },
+      "Transitions": {}
+    }
+  ]
+}

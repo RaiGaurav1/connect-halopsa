@@ -1,0 +1,27 @@
+{
+  "name": "customer-lookup-lambda",
+  "version": "4.0.0",
+  "description": "Customer Lookup Lambda for Connect-HaloPSA Integration",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "jest",
+    "package": "zip -r ../../customer-lookup.zip . -x '*.git*' -x '*.md'"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.540.0",
+    "@aws-sdk/lib-dynamodb": "^3.540.0",
+    "@aws-sdk/client-secrets-manager": "^3.540.0",
+    "@aws-sdk/client-cloudwatch": "^3.540.0",
+    "axios": "^1.6.8",
+    "axios-retry": "^3.3.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/node": "^20.11.0",
+    "@types/aws-lambda": "^8.10.136"
+  }
+}

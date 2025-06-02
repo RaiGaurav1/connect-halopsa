@@ -1,0 +1,73 @@
+{
+  "Metadata": {
+    "Name": "ConnectHaloPSA-Inbound",
+    "Description": "Inbound flow with customer lookup and call logging"
+  },
+  "Actions": [
+    {
+      "Identifier": "Start",
+      "Type": "GetCustomerInput",
+      "Parameters": {}
+    },
+    {
+      "Identifier": "InvokeLambdaLookup",
+      "Type": "InvokeAWSLambdaFunction",
+      "Parameters": {
+        "FunctionARN": "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${STACK_NAME}-customer-lookup",
+        "InvocationType": "RequestResponse",
+        "UserParameters": {
+          "PhoneNumber": "${CustomerEndpoint.Address}"
+        },
+        "Namespace": "LookupResult"
+      },
+      "Transitions": {
+        "NextAction": "CheckLookupResult"
+      }
+    },
+    {
+      "Identifier": "CheckLookupResult",
+      "Type": "CheckAttribute",
+      "Parameters": {
+        "ComparisonType": "Equals",
+        "LeftValue": "LookupResult.CustomerFound",
+        "RightValue": "true"
+      },
+      "Transitions": {
+        "True": "ScreenPop",
+        "False": "NoMatchFlow"
+      }
+    },
+    {
+      "Identifier": "ScreenPop",
+      "Type": "SendToFlow",
+      "Parameters": {
+        "FunctionARN": "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${STACK_NAME}-screen-pop",
+        "UserParameters": { 
+          "CustomerId": "${LookupResult.CustomerId}",
+          "CustomerName": "${LookupResult.CustomerName}",
+          "CustomerEmail": "${LookupResult.CustomerEmail}"
+        }
+      },
+      "Transitions": {
+        "NextAction": "RouteToQueue"
+      }
+    },
+    {
+      "Identifier": "NoMatchFlow",
+      "Type": "PlayPrompt",
+      "Parameters": {
+        "Prompt": "We could not find your account. Please hold while we connect you to an agent."
+      },
+      "Transitions": {
+        "NextAction": "RouteToQueue"
+      }
+    },
+    {
+      "Identifier": "RouteToQueue",
+      "Type": "TransferToQueue",
+      "Parameters": {
+        "QueueARN": "arn:aws:connect:${AWS_REGION}:${AWS_ACCOUNT_ID}:instance/${CONNECT_INSTANCE_ID}/queue/your-queue-id"
+      }
+    }
+  ]
+}
