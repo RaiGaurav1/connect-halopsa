@@ -1,13 +1,25 @@
 // src/services/connectService.ts
-import axios from 'axios';
-import { Customer } from '../types';
+import axios, { AxiosResponse, AxiosError } from 'axios';
+import { Customer, Connect, ConnectContact } from '../types';
+
+// Define API response type for better type safety
+interface CustomerLookupResponse {
+  CustomerFound?: string | boolean;
+  CustomerId?: string;
+  CustomerName?: string;
+  CustomerEmail?: string;
+  CustomerCompany?: string;
+  CustomerStatus?: string;
+  Priority?: string;
+  ErrorMessage?: string;
+}
 
 class ConnectService {
   private ccpUrl: string;
   private initialized = false;
 
   constructor() {
-    const ccpUrl = import.meta.env.VITE_CONNECT_INSTANCE_URL;
+    const ccpUrl = import.meta.env.VITE_CONNECT_INSTANCE_URL as string | undefined;
     if (!ccpUrl) {
       throw new Error('❌ VITE_CONNECT_INSTANCE_URL is not defined in environment variables.');
     }
@@ -18,7 +30,7 @@ class ConnectService {
    * Initializes the Amazon Connect CCP and wires up contact event listeners.
    *
    * @param container  - The DOM element where CCP will be embedded.
-   * @param onContactConnected - Callback that receives the caller’s phone number.
+   * @param onContactConnected - Callback that receives the caller's phone number.
    */
   initCCP(container: HTMLElement, onContactConnected: (phone: string) => void): void {
     if (this.initialized) {
@@ -26,17 +38,18 @@ class ConnectService {
       return;
     }
 
-    if (!window.connect?.core) {
+    const connectObj = window.connect;
+    if (!connectObj?.core) {
       console.error('❌ Amazon Connect Streams API is not loaded (window.connect.core missing).');
       return;
     }
 
     try {
-      window.connect.core.initCCP(container, {
+      connectObj.core.initCCP(container, {
         ccpUrl: this.ccpUrl,
         loginPopup: true,
         loginPopupAutoClose: true,
-        region: import.meta.env.VITE_CONNECT_REGION || 'us-east-1',
+        region: (import.meta.env.VITE_CONNECT_REGION as string) || 'ap-southeast-2',
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
@@ -44,13 +57,13 @@ class ConnectService {
       });
 
       // Listen for any new contact (inbound or outbound)
-      window.connect.contact((contact: any) => {
+      connectObj.contact((contact: ConnectContact) => {
         // onConnected fires when the agent accepts the call
         contact.onConnected(() => {
           try {
             const connection = contact.getInitialConnection();
             const endpoint = connection?.getEndpoint();
-            const phone: string | null = endpoint?.phoneNumber ?? null;
+            const phone = endpoint?.phoneNumber || null;
 
             console.log('📞 Connect CCP: Contact connected, phone=', phone);
             if (phone) {
@@ -83,25 +96,32 @@ class ConnectService {
    * @returns Promise<Customer | null>
    */
   async fetchCustomer(phoneNumber: string): Promise<Customer | null> {
-    const apiUrl = import.meta.env.VITE_API_URL;
+    const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
     if (!apiUrl) {
       throw new Error('❌ VITE_API_URL is not defined in environment variables.');
     }
 
     try {
-      const response = await axios.post(`${apiUrl}/customer-lookup-public`, { phoneNumber });
-      // Cast response.data to 'any' so TS knows its shape:
-      const data: any = response.data;
+      const response: AxiosResponse<CustomerLookupResponse> = await axios.post(
+        `${apiUrl}/customer-lookup-public`, 
+        { phoneNumber }
+      );
+      
+      const data = response.data;
 
-      const foundFlag = String(data?.CustomerFound ?? '').toLowerCase() === 'true';
+      // Handle different formats of CustomerFound (boolean or string)
+      const foundFlag = typeof data.CustomerFound === 'string' 
+        ? data.CustomerFound.toLowerCase() === 'true'
+        : Boolean(data.CustomerFound);
+      
       if (foundFlag) {
         const customer: Customer = {
-          id: String(data.CustomerId),
-          name: String(data.CustomerName),
-          email: String(data.CustomerEmail),
-          company: String(data.CustomerCompany),
-          status: (data.CustomerStatus as 'Active' | 'Inactive') || 'Inactive',
-          priority: (data.Priority as 'High' | 'Normal' | 'Low') || 'Normal',
+          id: String(data.CustomerId || ''),
+          name: String(data.CustomerName || ''),
+          email: String(data.CustomerEmail || ''),
+          company: String(data.CustomerCompany || ''),
+          status: this.validateStatus(data.CustomerStatus),
+          priority: this.validatePriority(data.Priority),
         };
         console.log('✅ Customer found:', customer);
         return customer;
@@ -110,9 +130,26 @@ class ConnectService {
         return null;
       }
     } catch (error) {
-      console.error('❌ Error fetching customer:', error);
+      const axiosError = error as AxiosError;
+      console.error('❌ Error fetching customer:', axiosError.message || error);
       return null;
     }
+  }
+
+  /**
+   * Validates status value and provides a default if invalid
+   */
+  private validateStatus(status?: string): 'Active' | 'Inactive' {
+    return status === 'Active' ? 'Active' : 'Inactive';
+  }
+
+  /**
+   * Validates priority value and provides a default if invalid
+   */
+  private validatePriority(priority?: string): 'High' | 'Normal' | 'Low' {
+    if (priority === 'High') return 'High';
+    if (priority === 'Low') return 'Low';
+    return 'Normal';
   }
 }
 

@@ -1,16 +1,6 @@
-// src/services/ConnectService.ts
+// src/services/connectService.ts
 import axios from 'axios';
-import { Customer } from '../types';  // ← Uses your Customer interface from types.ts
-
-/**
- * We rely on your global definitions in types.ts:
- *
- *   export interface ConnectCore { ... }
- *   export interface Connect { core: ConnectCore; contact: (callback: any) => void }
- *   declare global { interface Window { connect?: Connect } }
- *
- * so there’s no need to redefine ConnectCore, ConnectContact, etc. here.
- */
+import { Customer } from '../types';
 
 class ConnectService {
   private ccpUrl: string;
@@ -19,54 +9,107 @@ class ConnectService {
   constructor() {
     const ccpUrl = import.meta.env.VITE_CONNECT_INSTANCE_URL;
     if (!ccpUrl) {
-      throw new Error('❌ VITE_CONNECT_INSTANCE_URL is not defined in environment variables.');
+      console.error('❌ VITE_CONNECT_INSTANCE_URL is not defined in environment variables.');
+      // Use default URL for development, will be overridden in production
+      this.ccpUrl = "https://your-instance.my.connect.aws/connect/ccp-v2/";
+    } else {
+      this.ccpUrl = ccpUrl;
     }
-    this.ccpUrl = ccpUrl;
+  }
+
+  /**
+   * Loads the Amazon Connect Streams API if not already loaded
+   */
+  private loadConnectAPI(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // If already loaded, resolve immediately
+      if (window.connect?.core) {
+        resolve();
+        return;
+      }
+
+      // If script tag doesn't exist, create it
+      if (!document.querySelector('script[src*="connect/ccp"]')) {
+        const script = document.createElement('script');
+        script.src = this.ccpUrl.replace('ccp-v2/', 'ccp-v2.js');
+        script.async = true;
+        
+        script.onload = () => {
+          console.log('✅ Amazon Connect Streams API loaded');
+          // Wait a bit for the script to initialize
+          setTimeout(() => {
+            if (window.connect?.core) {
+              resolve();
+            } else {
+              reject(new Error('Connect API loaded but connect.core not available'));
+            }
+          }, 500);
+        };
+        
+        script.onerror = () => {
+          reject(new Error('Failed to load Amazon Connect Streams API'));
+        };
+        
+        document.head.appendChild(script);
+      } else {
+        // Script exists but API not loaded, wait for it
+        let retries = 0;
+        const maxRetries = 20;
+        const interval = setInterval(() => {
+          if (window.connect?.core) {
+            clearInterval(interval);
+            resolve();
+            return;
+          }
+          
+          retries++;
+          if (retries >= maxRetries) {
+            clearInterval(interval);
+            reject(new Error('Timeout waiting for Amazon Connect Streams API to initialize'));
+          }
+        }, 250);
+      }
+    });
   }
 
   /**
    * Initializes the Amazon Connect CCP and wires up contact event listeners.
    *
    * @param container  - The DOM element where CCP will be embedded.
-   * @param onContactConnected - Callback that receives the caller’s phone number.
+   * @param onContactConnected - Callback that receives the caller's phone number.
    */
-  initCCP(container: HTMLElement, onContactConnected: (phone: string) => void): void {
+  async initCCP(container: HTMLElement, onContactConnected: (phone: string) => void): Promise<void> {
     if (this.initialized) {
       console.warn('⚠️ CCP is already initialized. Skipping.');
       return;
     }
 
-    const connectObj = window.connect;
-    if (!connectObj || !connectObj.core) {
-      console.error('❌ Amazon Connect Streams API is not loaded (window.connect.core missing).');
-      return;
-    }
-
     try {
+      await this.loadConnectAPI();
+
       // Initialize the CCP iframe
-      connectObj.core.initCCP(container, {
+      window.connect.core.initCCP(container, {
         ccpUrl: this.ccpUrl,
         loginPopup: true,
         loginPopupAutoClose: true,
-        region: import.meta.env.VITE_CONNECT_REGION || 'us-east-1',
+        region: import.meta.env.VITE_CONNECT_REGION || 'ap-southeast-2',
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
         },
       });
 
-      // Now that we know `connectObj` exists, safely call `contact(...)`
-      connectObj.contact((contact: any) => {
+      // Listen for any new contact (inbound or outbound)
+      window.connect.contact((contact: any) => {
         // onConnected fires when the agent accepts the call
         contact.onConnected(() => {
           try {
-            // getInitialConnection() → getEndpoint() → phoneNumber
             const connection = contact.getInitialConnection();
             const endpoint = connection?.getEndpoint();
             const phone: string | null = endpoint?.phoneNumber ?? null;
 
+            console.log('📞 Contact connected, phone:', phone);
             if (phone) {
-              console.log('📞 Contact connected, phone:', phone);
               onContactConnected(phone);
             } else {
               console.warn('⚠️ Contact connected but no phone number found.');
@@ -86,6 +129,7 @@ class ConnectService {
       console.log('✅ CCP initialized successfully.');
     } catch (error) {
       console.error('❌ Failed to initialize CCP:', error);
+      throw error; // Re-throw to allow UI to handle failure
     }
   }
 
@@ -124,7 +168,7 @@ class ConnectService {
       }
     } catch (error) {
       console.error('❌ Error fetching customer:', error);
-      return null;
+      throw error;
     }
   }
 }

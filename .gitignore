@@ -33,3 +33,7 @@ dist/
 # Logs
 logs/
 *.log
+deployment-config.sh
+deployment-config-*.sh
+frontend/.env
+frontend/.env.*local

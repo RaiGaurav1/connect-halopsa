@@ -38,9 +38,15 @@ export const handler = async (event, context) => {
   const metrics = { cacheHit: false, apiCall: false, success: false };
 
   try {
+    // Extract and validate phone number
     const phoneNumber = extractPhoneNumber(event);
     if (!phoneNumber) {
       return createResponse(400, false, 'No phone number provided');
+    }
+
+    // Validate phone number format
+    if (!validatePhoneNumber(phoneNumber)) {
+      return createResponse(400, false, 'Invalid phone number format');
     }
 
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -57,6 +63,9 @@ export const handler = async (event, context) => {
 
     // 2. Fetch secrets & initialize HaloPSA client
     const secrets = await getSecrets();
+    if (!secrets) {
+      return createResponse(500, false, 'Failed to retrieve API credentials');
+    }
     
     // 3. Lookup via HaloPSA API
     metrics.apiCall = true;
@@ -80,18 +89,36 @@ export const handler = async (event, context) => {
   }
 };
 
+function validatePhoneNumber(phone) {
+  if (!phone) return false;
+  // Basic phone number validation - allows various formats that can be normalized
+  return /^[+]?[0-9\-\(\)\s]{8,20}$/.test(phone);
+}
+
 function extractPhoneNumber(event) {
   // Amazon Connect format
   if (event.Details?.ContactData?.CustomerEndpoint?.Address) {
     return event.Details.ContactData.CustomerEndpoint.Address;
   }
   
+  // Direct API call format
   if (event.phoneNumber) {
     return event.phoneNumber;
   }
   
+  // Contact flow parameter format
   if (event.Details?.Parameters?.PhoneNumber) {
     return event.Details.Parameters.PhoneNumber;
+  }
+  
+  // Try body for API Gateway integration
+  if (event.body) {
+    try {
+      const body = JSON.parse(event.body);
+      return body.phoneNumber;
+    } catch (e) {
+      console.warn('Failed to parse request body:', e);
+    }
   }
   
   return null;
@@ -177,6 +204,7 @@ async function getSecrets() {
     _secretsCacheExpiry = now + (5 * 60 * 1000); // 5 minutes
     return _secretsCache;
   } catch (err) {
+    console.error('Failed to get secrets:', err);
     err.name = 'SecretsManagerError';
     throw err;
   }
@@ -184,18 +212,24 @@ async function getSecrets() {
 
 async function lookupCustomer(phoneNumber, secrets) {
   // Implement actual API call to HaloPSA
-  // This is a simplified example
   try {
-    const response = await fetch(`${secrets.apiBaseUrl}/customers?search=${phoneNumber}&searchtype=phone&count=1`, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), parseInt(TIMEOUT_MS));
+    
+    const response = await fetch(`${secrets.apiBaseUrl}/customers?search=${encodeURIComponent(phoneNumber)}&searchtype=phone&count=1`, {
       headers: {
         'Authorization': `Bearer ${secrets.token}`,
         'Content-Type': 'application/json',
         'X-Tenant': secrets.tenantId
-      }
+      },
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
+    
     if (!response.ok) {
-      throw new Error(`API call failed with status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`API call failed with status: ${response.status}, ${errorText}`);
     }
     
     const data = await response.json();
@@ -203,6 +237,9 @@ async function lookupCustomer(phoneNumber, secrets) {
     return customers.length ? customers[0] : null;
   } catch (err) {
     console.error('HaloPSA API error:', err);
+    if (err.name === 'AbortError') {
+      err.name = 'TimeoutError';
+    }
     throw err;
   }
 }

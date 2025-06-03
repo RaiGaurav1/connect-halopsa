@@ -1,19 +1,50 @@
-
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: API Gateway for Connect-HaloPSA Integration
 
 Parameters:
-  STACK_NAME:
+  StackName:
     Type: String
-  ENVIRONMENT:
+  Environment:
     Type: String
+  CustomerLookupFunctionArn:
+    Type: String
+    Description: ARN of the customer lookup Lambda function
 
 Resources:
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub '${StackName}-webhook-key'
+      Description: 'API key for HaloPSA webhook'
+      Enabled: true
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      ApiStages:
+        - ApiId: !Ref ConnectApi
+          Stage: prod
+      Description: !Sub 'Usage plan for ${StackName} API'
+      UsagePlanName: !Sub '${StackName}-usage-plan'
+      Quota:
+        Limit: 1000
+        Period: DAY
+      Throttle:
+        RateLimit: 10
+        BurstLimit: 20
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
   ConnectApi:
     Type: AWS::Serverless::Api
     Properties:
-      Name: !Sub '${STACK_NAME}-api'
+      Name: !Sub '${StackName}-api'
       StageName: prod
       Auth:
         DefaultAuthorizer: AWS_IAM
@@ -35,28 +66,27 @@ Resources:
               x-amazon-apigateway-integration:
                 uri: !Sub 
                   - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${FnArn}/invocations
-                  - { Region: !Ref AWS::Region, FnArn: !GetAtt CustomerLookupFunction.Arn }
+                  - { Region: !Ref AWS::Region, FnArn: !Ref CustomerLookupFunctionArn }
                 httpMethod: POST
                 type: aws_proxy
               security:
                 - sigv4: []
-          /webhook:
-            post:
-              x-amazon-apigateway-integration:
-                uri: !Sub 
-                  - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${HookArn}/invocations
-                  - { Region: !Ref AWS::Region, HookArn: !GetAtt WebhookHandlerFunction.Arn }
-                httpMethod: POST
-                type: aws_proxy
-              # No Auth: authentication is handled in-code (e.g., verify a shared secret)
         securityDefinitions:
           sigv4:
             type: apiKey
             name: Authorization
             in: header
             x-amazon-apigateway-authtype: "awsSigv4"
+          api_key:
+            type: apiKey
+            name: x-api-key
+            in: header
 
 Outputs:
   ApiUrl:
     Description: URL of API Gateway
     Value: !Sub 'https://${ConnectApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  
+  WebhookApiKey:
+    Description: API Key for webhook endpoint
+    Value: !Ref ApiKey
