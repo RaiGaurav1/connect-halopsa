@@ -5,11 +5,9 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20.x-green)
 ![Platform](https://img.shields.io/badge/Platform-Cross--Platform-lightgrey)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Typescript](https://img.shields.io/badge/TypeScript-5.4-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 
 A production-ready integration between Amazon Connect Contact Control Panel (CCP) and HaloPSA, providing automated customer lookup, screen pops, and call logging capabilities. This solution enhances agent productivity and customer experience by delivering instant customer information during calls and automating post-call documentation.
-
-![Architecture Diagram](https://raw.githubusercontent.com/RaiGaurav1/connect-halopsa/main/docs/architecture.png)
 
 ## 📋 Table of Contents
 
@@ -21,9 +19,22 @@ A production-ready integration between Amazon Connect Contact Control Panel (CCP
   - [macOS Setup](#macos-setup)
   - [Windows Setup](#windows-setup)
   - [Linux Setup](#linux-setup)
+  - [Set Up Mock Backend](#set-up-mock-backend-optional)
+  - [Running the Application Locally](#running-the-application-locally)
 - [AWS Deployment](#aws-deployment)
+  - [1. Configure Deployment Settings](#1-configure-deployment-settings)
+  - [2. Deploy Infrastructure](#2-deploy-infrastructure)
+  - [3. Deploy Frontend to S3](#3-deploy-frontend-to-s3-production)
+  - [4. Set Up CloudFront Distribution](#4-set-up-cloudfront-distribution-optional)
 - [Amazon Connect Configuration](#amazon-connect-configuration)
+  - [1. Add Origin to Approved List](#1-add-origin-to-approved-list)
+  - [2. Import Contact Flows](#2-import-contact-flows)
+  - [3. Configure Contact Flow](#3-configure-contact-flow)
+  - [4. Assign Phone Numbers](#4-assign-phone-numbers)
 - [HaloPSA Integration](#halopsa-integration)
+  - [1. Create API Client](#1-create-api-client)
+  - [2. Configure Webhook](#2-configure-webhook-optional)
+  - [3. Create Ticket Types](#3-create-ticket-types-optional)
 - [Project Structure](#project-structure)
 - [Security Best Practices](#security-best-practices)
 - [Performance Optimization](#performance-optimization)
