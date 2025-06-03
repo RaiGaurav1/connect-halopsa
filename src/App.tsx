@@ -1,83 +1,75 @@
-import React, { useState, useCallback } from 'react';
-import {
-  Container, Grid, Typography, Box, AppBar, Toolbar, CssBaseline
-} from '@mui/material';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import PhoneIcon from '@mui/icons-material/Phone';
-import CCPContainer from './components/CCPContainer';
-import CustomerDetails from './components/CustomerDetails';
-import connectService from './services/connectService';
-import { Customer } from './types';
-
-// Define theme outside the component to prevent recreation on each render
-const theme = createTheme({
-  palette: {
-    primary: { main: '#232F3E' }, // AWS dark blue
-    secondary: { main: '#FF9900' } // AWS orange
-  }
-});
+import React, { useState } from "react";
+import { Box, Grid, Paper } from "@mui/material";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import CCPPlaceholder from "./components/CCPPlaceholder";
+import CustomerInfo from "./components/CustomerInfo";
 
 const App: React.FC = () => {
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  // Placeholder state—no real data yet
+  const [customer, setCustomer] = useState<null | any>(null);
+  const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleContactConnected = useCallback(async (phoneNumber: string) => {
-    console.log('📞 Handling call for phone:', phoneNumber);
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const data = await connectService.fetchCustomer(phoneNumber);
-      
-      if (data) {
-        setCustomer(data);
-        console.log('✅ Customer found:', data);
-      } else {
-        setError('Customer not found');
-        setCustomer(null);
-      }
-    } catch (err: unknown) {
-      // Handle error with proper type checking
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : 'Failed to fetch customer info';
-      console.error('❌ Error fetching customer:', err);
-      setError(errorMessage);
-      setCustomer(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []); // No dependencies needed as we don't use any external values
+  // Placeholder: called when CCP “connects” later
+  const handleContactConnected = (contact: any) => {
+    console.log("Contact connected:", contact);
+    setConnected(true);
+  };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ flexGrow: 1 }}>
-        <AppBar position="static">
-          <Toolbar>
-            <PhoneIcon sx={{ mr: 2 }} />
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              AWS Connect + HaloPSA Integration
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Container maxWidth="xl" sx={{ mt: 4 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <CCPContainer onContactConnected={handleContactConnected} />
-            </Grid>
-            <Grid item xs={12} md={8}>
-              <CustomerDetails
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {/* 1. AppBar */}
+      <Header />
+
+      {/* 2. Main content: two cards side by side */}
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        <Grid container spacing={3}>
+          {/* LEFT CARD */}
+          <Grid item xs={12} md={7} lg={8}>
+            <Paper
+              elevation={3}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                borderRadius: 2,
+                overflow: "hidden",
+              }}
+            >
+              <CCPPlaceholder onContactConnected={handleContactConnected} />
+            </Paper>
+          </Grid>
+
+          {/* RIGHT CARD */}
+          <Grid item xs={12} md={5} lg={4}>
+            <Paper
+              elevation={3}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                borderRadius: 2,
+                overflow: "hidden",
+              }}
+            >
+              <CustomerInfo
                 customer={customer}
                 loading={loading}
                 error={error}
+                onManualLookup={(phone: string) => {
+                  console.log("Manual lookup for:", phone);
+                }}
               />
-            </Grid>
+            </Paper>
           </Grid>
-        </Container>
+        </Grid>
       </Box>
-    </ThemeProvider>
+
+      {/* 3. Footer */}
+      <Footer />
+    </Box>
   );
 };
 

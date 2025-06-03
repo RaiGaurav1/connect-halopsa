@@ -16,11 +16,31 @@ const CCPContainer: React.FC<CCPContainerProps> = ({ onContactConnected }) => {
   }, [onContactConnected]);
 
   return (
-    <Paper elevation={3} sx={{ p: 2, height: '600px' }}>
-      <Typography variant="h6" gutterBottom>
-        Amazon Connect Contact Control Panel
-      </Typography>
-      <Box ref={ccpRef} sx={{ width: '100%', height: '540px' }} />
+    <Paper elevation={0} sx={{ 
+      p: 0, 
+      height: '600px',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'primary.main', 
+        color: 'primary.contrastText',
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8
+      }}>
+        <Typography variant="h6">Amazon Connect Contact Control Panel</Typography>
+      </Box>
+      
+      <Box 
+        ref={ccpRef} 
+        sx={{ 
+          width: '100%', 
+          flexGrow: 1, 
+          bgcolor: 'background.paper'
+        }} 
+      />
     </Paper>
   );
 };

@@ -2,11 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AWS Connect + HaloPSA Integration</title>
-    <!-- Include Amazon Connect CCP script -->
-    <script src="https://your-instance.my.connect.aws/connect/ccp-v2.js"></script>
+
+    <!-- Roboto font for Material-UI -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+
+    <!-- Amazon Connect Streams JS SDK (we’ll wire it up later) -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/amazon-connect-streams@latest/dist/amazon-connect-streams.min.js"
+    ></script>
   </head>
   <body>
     <div id="root"></div>
