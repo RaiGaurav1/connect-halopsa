@@ -1,13 +1,6 @@
-// src/App.tsx
 import React, { useState, useCallback } from 'react';
 import {
-  Container,
-  Grid,
-  Typography,
-  Box,
-  AppBar,
-  Toolbar,
-  CssBaseline,
+  Container, Grid, Typography, Box, AppBar, Toolbar, CssBaseline
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -16,40 +9,46 @@ import CustomerDetails from './components/CustomerDetails';
 import connectService from './services/connectService';
 import { Customer } from './types';
 
+// Define theme outside the component to prevent recreation on each render
 const theme = createTheme({
   palette: {
-    primary: { main: '#232F3E' },
-    secondary: { main: '#FF9900' },
-  },
+    primary: { main: '#232F3E' }, // AWS dark blue
+    secondary: { main: '#FF9900' } // AWS orange
+  }
 });
 
 const App: React.FC = () => {
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleContactConnected = useCallback(async (phoneNumber: string) => {
     console.log('📞 Handling call for phone:', phoneNumber);
     setLoading(true);
     setError(null);
-
+    
     try {
-      const customerData = await connectService.fetchCustomer(phoneNumber);
-      if (customerData) {
-        setCustomer(customerData);
-        console.log('✅ Customer found:', customerData);
+      const data = await connectService.fetchCustomer(phoneNumber);
+      
+      if (data) {
+        setCustomer(data);
+        console.log('✅ Customer found:', data);
       } else {
         setError('Customer not found');
         setCustomer(null);
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      // Handle error with proper type checking
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Failed to fetch customer info';
       console.error('❌ Error fetching customer:', err);
-      setError('Failed to fetch customer info');
+      setError(errorMessage);
       setCustomer(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // No dependencies needed as we don't use any external values
 
   return (
     <ThemeProvider theme={theme}>
@@ -63,7 +62,6 @@ const App: React.FC = () => {
             </Typography>
           </Toolbar>
         </AppBar>
-
         <Container maxWidth="xl" sx={{ mt: 4 }}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={4}>

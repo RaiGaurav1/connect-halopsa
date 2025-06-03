@@ -16,18 +16,5 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['amazon-connect-streams']
-  },
-  build: {
-    outDir: 'build',
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'mui-vendor': ['@mui/material', '@emotion/react', '@emotion/styled'],
-          'connect-vendor': ['amazon-connect-streams']
-        }
-      }
-    }
   }
 })

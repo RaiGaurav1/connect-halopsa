@@ -6,6 +6,7 @@ Parameters:
   StackName:
     Type: String
     Default: connect-halopsa-integration
+
   Environment:
     Type: String
     Default: production

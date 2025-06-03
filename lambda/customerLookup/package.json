@@ -15,9 +15,7 @@
     "@aws-sdk/client-dynamodb": "^3.540.0",
     "@aws-sdk/lib-dynamodb": "^3.540.0",
     "@aws-sdk/client-secrets-manager": "^3.540.0",
-    "@aws-sdk/client-cloudwatch": "^3.540.0",
-    "axios": "^1.6.8",
-    "axios-retry": "^3.3.1"
+    "@aws-sdk/client-cloudwatch": "^3.540.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

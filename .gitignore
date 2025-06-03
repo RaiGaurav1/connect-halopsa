@@ -1,8 +1,35 @@
+# Node.js
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment files
 .env
-*.zip
-.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build artifacts
 build/
-.aws-sam/
 dist/
-coverage/
+.aws-sam/
+*.zip
+
+# IDE and OS files
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log

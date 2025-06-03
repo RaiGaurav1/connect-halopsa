@@ -1,0 +1,62 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: API Gateway for Connect-HaloPSA Integration
+
+Parameters:
+  STACK_NAME:
+    Type: String
+  ENVIRONMENT:
+    Type: String
+
+Resources:
+  ConnectApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${STACK_NAME}-api'
+      StageName: prod
+      Auth:
+        DefaultAuthorizer: AWS_IAM
+        AddDefaultAuthorizerToCorsPreflight: false
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowMethods: "'GET,POST,OPTIONS'"
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: Connect-HaloPSA API
+          version: "1.0"
+        schemes:
+          - "https"
+        paths:
+          /customer-lookup-public:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub 
+                  - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${FnArn}/invocations
+                  - { Region: !Ref AWS::Region, FnArn: !GetAtt CustomerLookupFunction.Arn }
+                httpMethod: POST
+                type: aws_proxy
+              security:
+                - sigv4: []
+          /webhook:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub 
+                  - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${HookArn}/invocations
+                  - { Region: !Ref AWS::Region, HookArn: !GetAtt WebhookHandlerFunction.Arn }
+                httpMethod: POST
+                type: aws_proxy
+              # No Auth: authentication is handled in-code (e.g., verify a shared secret)
+        securityDefinitions:
+          sigv4:
+            type: apiKey
+            name: Authorization
+            in: header
+            x-amazon-apigateway-authtype: "awsSigv4"
+
+Outputs:
+  ApiUrl:
+    Description: URL of API Gateway
+    Value: !Sub 'https://${ConnectApi}.execute-api.${AWS::Region}.amazonaws.com/prod'

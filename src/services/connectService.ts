@@ -1,16 +1,6 @@
-// src/services/ConnectService.ts
+// src/services/connectService.ts
 import axios from 'axios';
-import { Customer } from '../types';  // ← Uses your Customer interface from types.ts
-
-/**
- * We rely on your global definitions in types.ts:
- *
- *   export interface ConnectCore { ... }
- *   export interface Connect { core: ConnectCore; contact: (callback: any) => void }
- *   declare global { interface Window { connect?: Connect } }
- *
- * so there’s no need to redefine ConnectCore, ConnectContact, etc. here.
- */
+import { Customer } from '../types';
 
 class ConnectService {
   private ccpUrl: string;
@@ -36,15 +26,13 @@ class ConnectService {
       return;
     }
 
-    const connectObj = window.connect;
-    if (!connectObj || !connectObj.core) {
+    if (!window.connect?.core) {
       console.error('❌ Amazon Connect Streams API is not loaded (window.connect.core missing).');
       return;
     }
 
     try {
-      // Initialize the CCP iframe
-      connectObj.core.initCCP(container, {
+      window.connect.core.initCCP(container, {
         ccpUrl: this.ccpUrl,
         loginPopup: true,
         loginPopupAutoClose: true,
@@ -55,18 +43,17 @@ class ConnectService {
         },
       });
 
-      // Now that we know `connectObj` exists, safely call `contact(...)`
-      connectObj.contact((contact: any) => {
+      // Listen for any new contact (inbound or outbound)
+      window.connect.contact((contact: any) => {
         // onConnected fires when the agent accepts the call
         contact.onConnected(() => {
           try {
-            // getInitialConnection() → getEndpoint() → phoneNumber
             const connection = contact.getInitialConnection();
             const endpoint = connection?.getEndpoint();
             const phone: string | null = endpoint?.phoneNumber ?? null;
 
+            console.log('📞 Connect CCP: Contact connected, phone=', phone);
             if (phone) {
-              console.log('📞 Contact connected, phone:', phone);
               onContactConnected(phone);
             } else {
               console.warn('⚠️ Contact connected but no phone number found.');
@@ -78,12 +65,12 @@ class ConnectService {
 
         // Optionally handle call end
         contact.onEnded(() => {
-          console.log('📴 Contact ended.');
+          console.log('📴 Connect CCP: Contact ended');
         });
       });
 
       this.initialized = true;
-      console.log('✅ CCP initialized successfully.');
+      console.log('✅ CCP initialized');
     } catch (error) {
       console.error('❌ Failed to initialize CCP:', error);
     }
@@ -103,9 +90,9 @@ class ConnectService {
 
     try {
       const response = await axios.post(`${apiUrl}/customer-lookup-public`, { phoneNumber });
-      const data = response.data;
+      // Cast response.data to 'any' so TS knows its shape:
+      const data: any = response.data;
 
-      // Some backends return booleans as strings—normalize by string comparison.
       const foundFlag = String(data?.CustomerFound ?? '').toLowerCase() === 'true';
       if (foundFlag) {
         const customer: Customer = {

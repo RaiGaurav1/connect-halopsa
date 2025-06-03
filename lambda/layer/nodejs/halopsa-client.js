@@ -1,5 +1,4 @@
 // lambda/layer/nodejs/halopsa-client.js
-
 const axios = require('axios');
 const axiosRetry = require('axios-retry');
 
@@ -8,13 +7,12 @@ class HaloPSAClient {
    * config: { baseURL, clientId, clientSecret, tenantId }
    */
   constructor(config) {
-    this.baseURL      = config.baseURL.replace(/\/+$/, ''); // trim trailing slash
-    this.clientId     = config.clientId;
+    this.baseURL = config.baseURL.replace(/\/+$/, ''); // trim trailing slash
+    this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
-    this.tenantId     = config.tenantId;
-
-    this.token        = null;
-    this.tokenExpiry  = 0; // epoch ms
+    this.tenantId = config.tenantId;
+    this.token = null;
+    this.tokenExpiry = 0; // epoch ms
 
     // Create Axios instance with default headers
     this.client = axios.create({
@@ -31,8 +29,8 @@ class HaloPSAClient {
       retries: 3,
       retryDelay: axiosRetry.exponentialDelay,
       retryCondition: (error) => {
-        return axiosRetry.isNetworkOrIdempotentRequestError(error) ||
-               (error.response && error.response.status === 429);
+        return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
+          (error.response && error.response.status === 429);
       }
     });
 
@@ -65,17 +63,18 @@ class HaloPSAClient {
 
   async _authenticate() {
     const payload = new URLSearchParams({
-      grant_type:    'client_credentials',
-      client_id:     this.clientId,
+      grant_type: 'client_credentials',
+      client_id: this.clientId,
       client_secret: this.clientSecret,
-      scope:         'all'
+      scope: 'all'
     }).toString();
-
+    
     const resp = await axios.post(
       `${this.baseURL}/auth/token`,
       payload,
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
+    
     this.token = resp.data.access_token;
     // expires_in is in seconds
     this.tokenExpiry = Date.now() + (resp.data.expires_in * 1000) - (60 * 1000);
@@ -89,11 +88,12 @@ class HaloPSAClient {
   async searchCustomerByPhone(phoneNumber) {
     const resp = await this.client.get('/Customers', {
       params: {
-        search:     phoneNumber,
+        search: phoneNumber,
         searchtype: 'phone',
-        count:      1
+        count: 1
       }
     });
+    
     const customers = resp.data.customers || [];
     return customers.length ? customers[0] : null;
   }
@@ -104,16 +104,17 @@ class HaloPSAClient {
    */
   async createCallLog(callData) {
     const body = {
-      summary:      `Call from ${callData.phoneNumber}`,
-      details:      callData.transcript || 'No transcript available',
-      customer_id:  callData.customerId,
-      category_id:  callData.categoryId || 1,    // default category
-      type_id:      callData.typeId     || 26,   // call type
-      agent_id:     callData.agentId,
-      status_id:    callData.statusId   || 29,   // closed
+      summary: `Call from ${callData.phoneNumber}`,
+      details: callData.transcript || 'No transcript available',
+      customer_id: callData.customerId,
+      category_id: callData.categoryId || 1, // default category
+      type_id: callData.typeId || 26, // call type
+      agent_id: callData.agentId,
+      status_id: callData.statusId || 29, // closed
       dateoccurred: callData.startTime,
-      dateclosed:   callData.endTime
+      dateclosed: callData.endTime
     };
+    
     const resp = await this.client.post('/Tickets', body);
     return resp.data;
   }
